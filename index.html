@@ -589,7 +589,13 @@
                                 <label for="expectedOutput">Expected Output Description</label>
                                 <textarea id="expectedOutput" placeholder="Describe what kind of response or output this prompt should generate"></textarea>
                             </div>
-                            <button type="submit" class="cta-button">Submit Prompt</button>
+                            <div class="form-group">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                    <input type="checkbox" id="agreementCheckbox" required style="margin: 0; transform: scale(1.2);">
+                                    <span>I agree to allow PromptPool to use my submission for AI Training.</span>
+                                </label>
+                            </div>
+                            <button type="submit" class="cta-button" id="submitButton">Submit Prompt</button>
                         </form>
                     </div>
                 </section>
@@ -708,7 +714,25 @@
         </div>
     </main>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
     <script>
+        // Firebase configuration - REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "your-api-key",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "your-app-id"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         // Navigation functionality
         function showPage(pageId) {
             // Hide all pages
@@ -750,26 +774,51 @@
         }
 
         // Form submissions
-        function submitPrompt(event) {
+        async function submitPrompt(event) {
             event.preventDefault();
+            
             if (!walletConnected) {
                 alert('Please connect your wallet first!');
                 return;
             }
+
+            const agreementCheckbox = document.getElementById('agreementCheckbox');
+            if (!agreementCheckbox.checked) {
+                alert('Please agree to allow PromptPool to use your submission for AI Training.');
+                return;
+            }
+
+            const submitButton = document.getElementById('submitButton');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
             
             const formData = {
                 title: document.getElementById('promptTitle').value,
                 category: document.getElementById('promptCategory').value,
                 content: document.getElementById('promptText').value,
-                expectedOutput: document.getElementById('expectedOutput').value
+                expectedOutput: document.getElementById('expectedOutput').value,
+                walletAddress: '0x1234...5678', // Replace with actual wallet address
+                submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                status: 'pending_review',
+                agreementAccepted: true
             };
             
-            // Here you would submit to your backend
-            console.log('Prompt submitted:', formData);
-            alert('Prompt submitted successfully! You will receive tokens once it\'s reviewed.');
-            
-            // Reset form
-            event.target.reset();
+            try {
+                // Submit to Firestore
+                await db.collection('prompts').add(formData);
+                
+                alert('Prompt submitted successfully! You will receive tokens once it\'s reviewed.');
+                
+                // Reset form
+                event.target.reset();
+                
+            } catch (error) {
+                console.error('Error submitting prompt:', error);
+                alert('Error submitting prompt. Please try again.');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Submit Prompt';
+            }
         }
 
         function submitContact(event) {
